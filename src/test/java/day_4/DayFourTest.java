@@ -2,6 +2,7 @@ package day_4;
 
 import day_4.DayFour.Card;
 import day_4.DayFour.ParserTool;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static day_4.DayFour.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DayFourTest {
@@ -72,6 +74,12 @@ class DayFourTest {
     void should_calculate_points(String input, int ignore, int expectedPoints) {
         Card card = ParserTool.parseCard(input);
         assertThat(card.calculatePoints()).isEqualTo(expectedPoints);
+    }
+    
+    @Test
+    void should_count_cards() {
+        ScratchGame scratchGame = new ScratchGame(ParserTool.parseCards(TEST_INPUT));
+        assertThat(scratchGame.play()).isEqualTo(30);
     }
 
 }

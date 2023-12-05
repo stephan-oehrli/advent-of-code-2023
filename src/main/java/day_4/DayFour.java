@@ -7,9 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import utils.FileUtil;
 
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class DayFour {
 
@@ -17,11 +15,40 @@ public class DayFour {
         List<String> inputs = FileUtil.readToList("day_4.txt");
         Integer points = inputs.stream().map(ParserTool::parseCard).map(Card::calculatePoints).reduce(0, Integer::sum);
         System.out.println("Total worth of points is: " + points);
+        ScratchGame scratchGame = new ScratchGame(ParserTool.parseCards(inputs));
+        int finalCardsCount = scratchGame.play();
+        System.out.println("Final count of cards is: " + finalCardsCount);
+    }
+
+    protected static class ScratchGame {
+
+        private final List<Card> allCards;
+        private final Queue<Card> cardQueue = new LinkedList<>();
+        
+        private int amountOfCards;
+        
+        public ScratchGame(List<Card> cards) {
+            allCards = cards;
+            cardQueue.addAll(cards);
+            amountOfCards = cards.size();
+        }
+        
+        public int play() {
+            while (cardQueue.peek() != null) {
+                Card card = cardQueue.poll();
+                int matchingNumbersSize = card.getMatchingNumbersSize();
+                amountOfCards += matchingNumbersSize;
+                for (int i = 1; i <= matchingNumbersSize; i++) {
+                    cardQueue.offer(allCards.get(card.id + i - 1));
+                }
+            }
+            return amountOfCards;
+        }
     }
 
     @EqualsAndHashCode
     @RequiredArgsConstructor
-    protected static final class Card {
+    protected static class Card {
         private final int id;
         private final List<Integer> winningNumbers;
         private final List<Integer> cardNumbers;
@@ -29,19 +56,28 @@ public class DayFour {
         private List<Integer> matchingNumbers;
 
         public int calculatePoints() {
+            int matchingNumbersSize = getMatchingNumbersSize();
+            if (matchingNumbersSize == 0) {
+                return 0;
+            }
+            return (int) Math.pow(2, matchingNumbersSize - 1);
+        }
+
+        public int getMatchingNumbersSize() {
             if (matchingNumbers == null) {
                 matchingNumbers = new ArrayList<>(cardNumbers);
                 matchingNumbers.retainAll(winningNumbers);
             }
-            if (matchingNumbers.isEmpty()) {
-                return 0;
-            }
-            return (int) Math.pow(2, matchingNumbers.size() - 1);
+            return matchingNumbers.size();
         }
     }
 
     @UtilityClass
     protected static class ParserTool {
+        
+        public static List<Card> parseCards(List<String> input) {
+            return input.stream().map(ParserTool::parseCard).toList();
+        }
 
         public static Card parseCard(String input) {
             List<String> cardIdPart = Arrays.stream(input.split(":")[0].split(" "))
