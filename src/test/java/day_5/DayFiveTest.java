@@ -55,11 +55,11 @@ class DayFiveTest {
     void should_parse_seeds() {
         assertThat(parseSeeds("seeds: 79 14 55 4173137165")).containsExactly(79L, 14L, 55L, 4173137165L);
     }
-    
+
     @Test
     void should_parse_seed_ranges() {
         List<Range> ranges = parseSeedRanges("seeds: 79 14 55 13");
-        
+
         assertThat(ranges).hasSize(2);
         assertThat(ranges.get(0)).isEqualTo(new Range(79L, 92L));
         assertThat(ranges.get(1)).isEqualTo(new Range(55L, 67L));
@@ -68,9 +68,9 @@ class DayFiveTest {
     @Test
     void should_parse_range() {
         assertThat(parseRange("3266233336 2662846763 101445145")).extracting(
-                RangeMap::getSourceCategoryStart,
-                RangeMap::getDestinationCategoryStart,
-                RangeMap::getRangeLength
+                RangeMap::sourceCategoryStart,
+                RangeMap::destinationCategoryStart,
+                RangeMap::rangeLength
         ).containsExactly(2662846763L, 3266233336L, 101445145L);
     }
 
@@ -111,7 +111,7 @@ class DayFiveTest {
         RangeMap rangeMap = new RangeMap(98L, 50L, 2);
         assertThat(rangeMap.findDestination(input)).isEqualTo(expected);
     }
-    
+
     @Test
     void should_find_lowest_location_of_seeds() {
         Almanac almanac = parseAlmanac(TEST_INPUT);
@@ -122,5 +122,23 @@ class DayFiveTest {
     void should_find_lowest_location_of_seed_ranges() {
         Almanac almanac = parseAlmanac(TEST_INPUT);
         assertThat(almanac.findLowestLocationOfSeedRanges()).isEqualTo(46L);
+    }
+
+    @Test
+    void should_split_range() {
+        List<RangeMap> rangeMaps = Arrays.asList(
+                new RangeMap(50L, 70L, 20L),
+                new RangeMap(40L, 30L, 10L)
+        );
+        Range range = new Range(20L, 69L);
+
+        List<Range> ranges = range.splitBy(rangeMaps);
+
+        assertThat(ranges).hasSize(3);
+        assertThat(ranges).containsExactly(
+                new Range(20L, 39L),
+                new Range(40L, 49L),
+                new Range(50L, 69L)
+        );
     }
 }

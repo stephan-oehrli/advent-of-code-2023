@@ -9,6 +9,8 @@ import utils.FileUtil;
 import java.io.FileNotFoundException;
 import java.util.*;
 
+import static java.util.Comparator.comparingLong;
+
 public class DayFive {
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -24,14 +26,14 @@ public class DayFive {
     }
 
     protected record Range(long from, long to) {
+
+        public List<Range> splitBy(List<RangeMap> maps) {
+            RangeSplitter rangeSplitter = new RangeSplitter(maps, new LinkedList<>(List.of(this)));
+            return rangeSplitter.split();
+        }
     }
 
-    @Getter
-    @RequiredArgsConstructor
-    protected static class RangeMap {
-        private final long sourceCategoryStart;
-        private final long destinationCategoryStart;
-        private final long rangeLength;
+    protected record RangeMap(long sourceCategoryStart, long destinationCategoryStart, long rangeLength) {
 
         public boolean containsSource(long input) {
             return input >= sourceCategoryStart && input < sourceCategoryStart + rangeLength;
@@ -41,10 +43,66 @@ public class DayFive {
             long index = input - sourceCategoryStart;
             return destinationCategoryStart + index;
         }
+
+        public boolean sourceRangeHasNoIntersectionWith(Range range) {
+            return range.to() < sourceCategoryStart || range.from() >= sourceCategoryStart + rangeLength;
+        }
+
+        public boolean sourceRangeContainsFull(Range range) {
+            return range.from() >= sourceCategoryStart && range.to() < sourceCategoryStart + rangeLength;
+        }
+    }
+
+    @RequiredArgsConstructor
+    protected static class RangeSplitter {
+        private final List<RangeMap> maps;
+        private final Queue<Range> rangeQueue;
+
+        private final List<Range> splitRanges = new ArrayList<>();
+
+        public List<Range> split() {
+            while (!rangeQueue.isEmpty()) {
+                Range currentRange = rangeQueue.poll();
+                if (!hasFoundAnotherRangeFragment(currentRange)) {
+                    // No fragment found for maps -> remaining range fragment
+                    splitRanges.add(currentRange);
+                }
+            }
+            splitRanges.sort(comparingLong(Range::from));
+            return splitRanges;
+        }
+
+        private boolean hasFoundAnotherRangeFragment(Range currentRange) {
+            for (RangeMap map : maps) {
+                // no intersection -> ignore this map
+                if (map.sourceRangeHasNoIntersectionWith(currentRange)) {
+                    continue;
+                }
+                // map source range contains entire seed range -> reached max split for this range
+                if (map.sourceRangeContainsFull(currentRange)) {
+                    splitRanges.add(currentRange);
+                    return true;
+                }
+                // map source range contains upper seed range fragment -> split
+                else if (currentRange.from() < map.sourceCategoryStart()) {
+                    rangeQueue.add(new Range(currentRange.from(), map.sourceCategoryStart() - 1));
+                    rangeQueue.add(new Range(map.sourceCategoryStart(), currentRange.to()));
+                    return true;
+                }
+                // map source range contains lower seed range fragment -> split
+                else if (currentRange.to() >= map.sourceCategoryStart() + map.rangeLength()) {
+                    rangeQueue.add(new Range(currentRange.from(), map.sourceCategoryStart() + map.rangeLength() - 1));
+                    rangeQueue.add(new Range(map.sourceCategoryStart() + map.rangeLength(), currentRange.to()));
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     @Getter
     @RequiredArgsConstructor
+    @SuppressWarnings("ClassCanBeRecord")
     protected static class Almanac {
 
         private final List<Long> seeds;
@@ -66,6 +124,18 @@ public class DayFive {
             return inMap.map(rangeMap -> rangeMap.findDestination(input)).orElse(input);
         }
 
+        private List<Range> apply(Range range, List<RangeMap> rangeMapList) {
+            return range.splitBy(rangeMapList).stream()
+                    .map(r -> new Range(apply(r.from(), rangeMapList), apply(r.to(), rangeMapList))).toList();
+        }
+
+        private List<Range> apply(List<Range> ranges, List<RangeMap> rangeMapList) {
+            List<Range> newRanges = new ArrayList<>();
+            ranges.stream().map(r -> apply(r, rangeMapList)).forEach(newRanges::addAll);
+            newRanges.sort(comparingLong(Range::from));
+            return newRanges;
+        }
+
         private long findLocation(long seed) {
             long result = seed;
             for (List<RangeMap> map : allMaps) {
@@ -80,19 +150,17 @@ public class DayFive {
         }
 
         public long findLowestLocationOfSeedRanges() {
-            Long lowest = null;
+            List<Long> lowestLocationInRanges = new ArrayList<>();
             for (Range seedRange : seedRanges) {
-                for (long i = seedRange.from(); i <= seedRange.to(); i++) {
-                    long seedLocation = findLocation(i);
-                    if (lowest == null || lowest > seedLocation) {
-                        lowest = seedLocation;
-                    }
+                List<Range> seedRangesToApply = List.of(seedRange);
+                for (List<RangeMap> maps : allMaps) {
+                    seedRangesToApply = apply(seedRangesToApply, maps);
                 }
+                Range lowestLocationRange = seedRangesToApply.get(0);
+                lowestLocationInRanges.add(lowestLocationRange.from());
             }
-            if (lowest == null) {
-                throw new IllegalStateException("Can not find lowest location.");
-            }
-            return lowest;
+            lowestLocationInRanges.sort(Long::compare);
+            return lowestLocationInRanges.get(0);
         }
     }
 
